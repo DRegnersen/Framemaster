@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+C:/Users/deofr/C/Prog-Lab-4/framemaster.h
+
+C:/Users/deofr/C/Prog-Lab-4/main.c
+stdio.h
+-
+stdlib.h
+-
+string.h
+-
+framemaster.h
+C:/Users/deofr/C/Prog-Lab-4/framemaster.h
+
