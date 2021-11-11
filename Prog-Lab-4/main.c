@@ -116,6 +116,16 @@ void setInfo(tag *tag_info, frame *frame_list, unsigned length, char *header, ch
     printf("Frame not found\n");
 }
 
+void fprint10(FILE *out) {
+    fseek(out, -1, SEEK_CUR);
+    char prev_char = fgetc(out);
+    fseek(out, -1, SEEK_CUR);
+    fputc(10, out);
+    fseek(out, -2, SEEK_CUR);
+    fputc(prev_char, out);
+    fseek(out, 1, SEEK_CUR);
+}
+
 void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length) {
     unsigned byte_num = (tag_info.version >= 3) ? 4 : 3;
     FILE *out = fopen(out_file, "r+");
@@ -141,7 +151,7 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
     power *= 2;
     byte_for_flags += power * tag_info.flags.footer_present;
 
-    fprintf(out, "%c", byte_for_flags);
+    fputc(byte_for_flags, out);
 
     power = INITIAL7;
 
@@ -149,15 +159,14 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
         cur_char = tag_info.size / power;
         tag_info.size -= cur_char * power;
 
-        fprintf(out, "%c", cur_char);
+        fputc(cur_char, out);
 
         power /= 128;
     }
 
     for (int i = 0; i < length; i++) {
-
         for (int j = 0; j < byte_num; j++) {
-            fprintf(out, "%c", frame_list[i].header[j]);
+            fputc(frame_list[i].header[j], out);
         }
 
         unsigned frame_size = strlen(frame_list[i].info) + 1;
@@ -167,16 +176,18 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
         for (int j = 0; j < 4; j++) {
             cur_char = frame_size / power;
             frame_size -= cur_char * power;
-
-            fprintf(out, "%c", cur_char);
-
+            if (cur_char == 10) {
+                fprint10(out);
+            } else {
+                fputc(cur_char, out);
+            }
             power /= 128;
         }
 
-        fprintf(out, "%c", frame_list[i].flag[0]);
-        fprintf(out, "%c", frame_list[i].flag[1]);
+        fputc(frame_list[i].flag[0], out);
+        fputc(frame_list[i].flag[1], out);
 
-        fprintf(out, "%c", frame_list[i].encoding);
+        fputc(frame_list[i].encoding, out);
 
 
         frame_size = strlen(frame_list[i].info);
@@ -184,10 +195,11 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
         if (!strcmp(frame_list[i].header, "COMM")) {
             frame_list[i].info[3] = 0;
         }
-      
+
         for (int j = 0; j < frame_size; j++) {
-            fprintf(out, "%c", frame_list[i].info[j]);
+            fputc(frame_list[i].info[j], out);
         }
+
     }
 
     fclose(out);
@@ -209,17 +221,48 @@ int main(int argc, char **argv) {
 
     getBasicData(in, &tag_info);
 
-    printf("Current size is %u bytes\n", tag_info.size);
-
     while (ftell(in) < tag_info.size) {
         frame_list = getNextFrame(in, &tag_info, frame_list, &last_frame);
     }
 
     fclose(in);
 
-    // setInfo(&tag_info, frame_list, last_frame + 1, "TYER", "2021");
-    showAll(frame_list, last_frame + 1);
-    createFile(filename, tag_info, frame_list, last_frame + 1);
+    short isChanged = 0;
+
+    for (int i = 1; i < argc - 1; i++) {
+        char *command = argv[i];
+        if (!strcmp(command, "--show")) {
+            showAll(frame_list, last_frame + 1);
+        } else {
+            if (strlen(command) >= 6) {
+                command[5] = 0;
+            }
+            if (!strcmp(command, "--set")) {
+                command[5] = '=';
+                char *next_command = argv[++i];
+
+                char *prop_name = strchr(command, '=') + 1;
+                char *prop_value = strrchr(next_command, '=') + 1;
+
+                setInfo(&tag_info, frame_list, last_frame + 1, prop_name, prop_value);
+                isChanged = 1;
+            } else if (!strcmp(command, "--get")) {
+                command[5] = '=';
+                char *prop_name = strchr(command, '=') + 1;
+
+                printf("%s\n", getInfo(frame_list, last_frame + 1, prop_name));
+            } else {
+                if (strlen(command) >= 6) {
+                    command[5] = '=';
+                }
+                printf("Command '%s' is unacceptable\n", command);
+            }
+        }
+    }
+
+    if (isChanged) {
+        createFile(filename, tag_info, frame_list, last_frame + 1);
+    }
 
     free(frame_list);
     frame_list = NULL;

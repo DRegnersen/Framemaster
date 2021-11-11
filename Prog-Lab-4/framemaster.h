@@ -3,7 +3,6 @@
 
 #define LINESIZE 100
 #define INITIAL7 2097152
-#define INITIAL8 16777216
 
 typedef struct {
     short unsynchronisation;
