@@ -1,2 +1,2 @@
 # Framemaster
- frame editor for the fourth programing lab
+ Frame editor for the fourth programing lab
