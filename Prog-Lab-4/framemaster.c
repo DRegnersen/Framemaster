@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "framemaster.h"
 
 void getBasicData(FILE *in, tag *tag_info) {
@@ -55,43 +56,45 @@ frame *getNextFrame(FILE *in, tag *tag_info, frame *new_frame_list, unsigned *la
         return NULL;
     }
 
-    // tag reading
+    // header reading
+    char header[4];
     for (int i = 0; i < byte_num; i++) {
         new_frame_list[(*last_frame)].header[i] = fgetc(in);
+        header[i] = new_frame_list[(*last_frame)].header[i];
     }
 
     new_frame_list[(*last_frame)].header[byte_num] = 0;
 
     // size reading
-    unsigned frame_size = 0;
-    unsigned power = INITIAL8;
+    int frame_size = 0;
+    unsigned power = INITIAL7;
 
     for (int i = 0; i < 4; i++) {
         frame_size += fgetc(in) * power;
-        power /= 256;
+        power /= 128;
     }
+
+    frame_size--;
 
     // reading flags
     new_frame_list[(*last_frame)].flag[0] = fgetc(in);
     new_frame_list[(*last_frame)].flag[1] = fgetc(in);
 
-    // information reading and skipping inappropriate bytes
+    // information reading
     char cur_info_char;
-    int idx = 0;
+
+    new_frame_list[(*last_frame)].encoding = fgetc(in);
 
     for (int i = 0; i < frame_size; i++) {
         cur_info_char = fgetc(in);
-
-        if (cur_info_char >= 32) {
-            new_frame_list[(*last_frame)].info[idx] = cur_info_char;
-            idx++;
-        } else {
-            // size updating
-            (*tag_info).size--;
-        }
+        new_frame_list[(*last_frame)].info[i] = cur_info_char;
     }
 
-    new_frame_list[(*last_frame)].info[idx] = 0;
+    if (!strcmp(new_frame_list[(*last_frame)].header, "COMM")) {
+        new_frame_list[(*last_frame)].info[3] = ' ';
+    }
+
+    new_frame_list[(*last_frame)].info[frame_size] = 0;
 
     (*last_frame)++;
 

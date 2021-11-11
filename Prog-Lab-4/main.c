@@ -160,22 +160,34 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
             fprintf(out, "%c", frame_list[i].header[j]);
         }
 
-        unsigned frame_size = strlen(frame_list[i].info);
+        unsigned frame_size = strlen(frame_list[i].info) + 1;
 
-        power = INITIAL8;
+        power = INITIAL7;
 
-        for (int i = 0; i < 4; i++) {
+        for (int j = 0; j < 4; j++) {
             cur_char = frame_size / power;
             frame_size -= cur_char * power;
 
             fprintf(out, "%c", cur_char);
 
-            power /= 256;
+            power /= 128;
         }
 
         fprintf(out, "%c", frame_list[i].flag[0]);
         fprintf(out, "%c", frame_list[i].flag[1]);
-        fprintf(out, "%s", frame_list[i].info);
+
+        fprintf(out, "%c", frame_list[i].encoding);
+
+
+        frame_size = strlen(frame_list[i].info);
+
+        if (!strcmp(frame_list[i].header, "COMM")) {
+            frame_list[i].info[3] = 0;
+        }
+      
+        for (int j = 0; j < frame_size; j++) {
+            fprintf(out, "%c", frame_list[i].info[j]);
+        }
     }
 
     fclose(out);
@@ -205,7 +217,7 @@ int main(int argc, char **argv) {
 
     fclose(in);
 
-    setInfo(&tag_info, frame_list, last_frame + 1, "TYER", "2021");
+    // setInfo(&tag_info, frame_list, last_frame + 1, "TYER", "2021");
     showAll(frame_list, last_frame + 1);
     createFile(filename, tag_info, frame_list, last_frame + 1);
 

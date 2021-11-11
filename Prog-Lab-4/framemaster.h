@@ -21,9 +21,10 @@ typedef struct {
 
 typedef struct {
     char header[5];
+    char encoding;
     char info[LINESIZE];
-    short flag[2];
-} frame;
+    char flag[2];
+    } frame;
 
 void getBasicData(FILE *in, tag *tag_info);
 
