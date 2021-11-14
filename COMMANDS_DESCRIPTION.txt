@@ -1,0 +1,3 @@
+--show - shows all frames information in the table
+--set=somename --value=somevalue - changes information in frame with tag "somename" to "somevalue"
+--get=somename - returns information of the frame with tag "somename"

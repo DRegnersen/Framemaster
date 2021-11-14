@@ -3,16 +3,16 @@
 #include <string.h>
 #include "framemaster.h"
 
-void getBasicData(FILE *in, tag *tag_info) {
+void getBasicData(FILE *in, header *header_info) {
     // ID3v2 signature reading
 
-    (*tag_info).signature[0] = fgetc(in);
-    (*tag_info).signature[1] = fgetc(in);
-    (*tag_info).signature[2] = fgetc(in);
-    (*tag_info).signature[3] = 0;
+    (*header_info).signature[0] = fgetc(in);
+    (*header_info).signature[1] = fgetc(in);
+    (*header_info).signature[2] = fgetc(in);
+    (*header_info).signature[3] = 0;
 
     // ID3v2 version reading
-    (*tag_info).version = fgetc(in);
+    (*header_info).version = fgetc(in);
 
     fgetc(in);
 
@@ -23,30 +23,30 @@ void getBasicData(FILE *in, tag *tag_info) {
         byte_for_flags /= 2;
     }
 
-    (*tag_info).flags.footer_present = byte_for_flags % 2;
+    (*header_info).flags.footer_present = byte_for_flags % 2;
     byte_for_flags /= 2;
 
-    (*tag_info).flags.exp_indicator = byte_for_flags % 2;
+    (*header_info).flags.exp_indicator = byte_for_flags % 2;
     byte_for_flags /= 2;
 
-    (*tag_info).flags.extended_header = byte_for_flags % 2;
+    (*header_info).flags.extended_header = byte_for_flags % 2;
     byte_for_flags /= 2;
 
-    (*tag_info).flags.unsynchronisation = byte_for_flags % 2;
+    (*header_info).flags.unsynchronisation = byte_for_flags % 2;
 
     // size reading
-    (*tag_info).size = 0;
+    (*header_info).size = 0;
 
     unsigned power = INITIAL7;
 
     for (int i = 0; i < 4; i++) {
-        (*tag_info).size += fgetc(in) * power;
+        (*header_info).size += fgetc(in) * power;
         power /= 128;
     }
 }
 
-frame *getNextFrame(FILE *in, tag *tag_info, frame *new_frame_list, unsigned *last_frame) {
-    unsigned byte_num = ((*tag_info).version >= 3) ? 4 : 3;
+frame *getNextFrame(FILE *in, header *header_info, frame *new_frame_list, unsigned *last_frame) {
+    unsigned byte_num = ((*header_info).version >= 3) ? 4 : 3;
 
     // new frame adding
     new_frame_list = (frame *) realloc(new_frame_list, ((*last_frame) + 1) * sizeof(frame));
@@ -56,14 +56,12 @@ frame *getNextFrame(FILE *in, tag *tag_info, frame *new_frame_list, unsigned *la
         return NULL;
     }
 
-    // header reading
-    char header[4];
+    // tag reading
     for (int i = 0; i < byte_num; i++) {
-        new_frame_list[(*last_frame)].header[i] = fgetc(in);
-        header[i] = new_frame_list[(*last_frame)].header[i];
+        new_frame_list[(*last_frame)].tag[i] = fgetc(in);
     }
 
-    new_frame_list[(*last_frame)].header[byte_num] = 0;
+    new_frame_list[(*last_frame)].tag[byte_num] = 0;
 
     // size reading
     int frame_size = 0;
@@ -81,16 +79,13 @@ frame *getNextFrame(FILE *in, tag *tag_info, frame *new_frame_list, unsigned *la
     new_frame_list[(*last_frame)].flag[1] = fgetc(in);
 
     // information reading
-    char cur_info_char;
-
     new_frame_list[(*last_frame)].encoding = fgetc(in);
 
     for (int i = 0; i < frame_size; i++) {
-        cur_info_char = fgetc(in);
-        new_frame_list[(*last_frame)].info[i] = cur_info_char;
+        new_frame_list[(*last_frame)].info[i] = fgetc(in);
     }
 
-    if (!strcmp(new_frame_list[(*last_frame)].header, "COMM")) {
+    if (!strcmp(new_frame_list[(*last_frame)].tag, "COMM")) {
         new_frame_list[(*last_frame)].info[3] = ' ';
     }
 

@@ -3,12 +3,12 @@
 #include <string.h>
 #include "framemaster.h"
 
-void getMaxLength(frame *frame_list, unsigned length, unsigned *max_header, unsigned *max_info) {
-    (*max_header) = 0;
+void getMaxLength(frame *frame_list, unsigned length, unsigned *max_tag, unsigned *max_info) {
+    (*max_tag) = 0;
     (*max_info) = 0;
 
     for (int i = 0; i < length; i++) {
-        (*max_header) = (strlen(frame_list[i].header) > (*max_header)) ? strlen(frame_list[i].header) : (*max_header);
+        (*max_tag) = (strlen(frame_list[i].tag) > (*max_tag)) ? strlen(frame_list[i].tag) : (*max_tag);
         (*max_info) = (strlen(frame_list[i].info) > (*max_info)) ? strlen(frame_list[i].info) : (*max_info);
     }
 }
@@ -16,13 +16,13 @@ void getMaxLength(frame *frame_list, unsigned length, unsigned *max_header, unsi
 void showAll(frame *frame_list, unsigned length) {
     printf("Frames:\n");
 
-    unsigned max_header, max_info;
+    unsigned max_tag, max_info;
 
-    getMaxLength(frame_list, length, &max_header, &max_info);
+    getMaxLength(frame_list, length, &max_tag, &max_info);
 
-    unsigned fst_sp_counter = (max_header - 3) / 2;
+    unsigned fst_sp_counter = (max_tag - 3) / 2;
 
-    for (int i = 0; i < max_header + max_info + 7; i++) {
+    for (int i = 0; i < max_tag + max_info + 7; i++) {
         printf("=");
     }
     printf("\n| ");
@@ -33,7 +33,7 @@ void showAll(frame *frame_list, unsigned length) {
 
     printf("TAG");
 
-    for (int i = fst_sp_counter + 3; i < max_header; i++) {
+    for (int i = fst_sp_counter + 3; i < max_tag; i++) {
         printf(" ");
     }
 
@@ -53,10 +53,10 @@ void showAll(frame *frame_list, unsigned length) {
     printf(" |\n");
 
     for (int i = 0; i < length; i++) {
-        if (frame_list[i].header[0] != 0 && frame_list[i].info[0] != 0) {
+        if (frame_list[i].tag[0] != 0 && frame_list[i].info[0] != 0) {
 
-            unsigned cur_length = strlen(frame_list[i].header);
-            unsigned fst_sp_counter = (max_header - cur_length) / 2;
+            unsigned cur_length = strlen(frame_list[i].tag);
+            unsigned fst_sp_counter = (max_tag - cur_length) / 2;
 
             printf("| ");
 
@@ -64,9 +64,9 @@ void showAll(frame *frame_list, unsigned length) {
                 printf(" ");
             }
 
-            printf("%s", frame_list[i].header);
+            printf("%s", frame_list[i].tag);
 
-            for (int j = fst_sp_counter + cur_length; j < max_header; j++) {
+            for (int j = fst_sp_counter + cur_length; j < max_tag; j++) {
                 printf(" ");
             }
 
@@ -88,7 +88,7 @@ void showAll(frame *frame_list, unsigned length) {
             printf(" |\n");
         }
     }
-    for (int i = 0; i < max_header + max_info + 7; i++) {
+    for (int i = 0; i < max_tag + max_info + 7; i++) {
         printf("=");
     }
     printf("\n");
@@ -96,7 +96,7 @@ void showAll(frame *frame_list, unsigned length) {
 
 char *getInfo(frame *frame_list, unsigned length, char *header) {
     for (int i = 0; i < length; i++) {
-        if (!strcmp(frame_list[i].header, header)) {
+        if (!strcmp(frame_list[i].tag, header)) {
             return frame_list[i].info;
         }
     }
@@ -104,11 +104,11 @@ char *getInfo(frame *frame_list, unsigned length, char *header) {
     return NULL;
 }
 
-void setInfo(tag *tag_info, frame *frame_list, unsigned length, char *header, char *value) {
+void setInfo(header *header_info, frame *frame_list, unsigned length, char *header, char *value) {
     for (int i = 0; i < length; i++) {
-        if (!strcmp(frame_list[i].header, header)) {
-            (*tag_info).size += strlen(value);
-            (*tag_info).size -= strlen(frame_list[i].info);
+        if (!strcmp(frame_list[i].tag, header)) {
+            (*header_info).size += strlen(value);
+            (*header_info).size -= strlen(frame_list[i].info);
             strcpy(frame_list[i].info, value);
             return;
         }
@@ -116,19 +116,9 @@ void setInfo(tag *tag_info, frame *frame_list, unsigned length, char *header, ch
     printf("Frame not found\n");
 }
 
-void fprint10(FILE *out) {
-    fseek(out, -1, SEEK_CUR);
-    char prev_char = fgetc(out);
-    fseek(out, -1, SEEK_CUR);
-    fputc(10, out);
-    fseek(out, -2, SEEK_CUR);
-    fputc(prev_char, out);
-    fseek(out, 1, SEEK_CUR);
-}
-
-void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length) {
-    unsigned byte_num = (tag_info.version >= 3) ? 4 : 3;
-    FILE *out = fopen(out_file, "r+");
+void createFile(char *out_file, header header_info, frame *frame_list, unsigned length) {
+    unsigned byte_num = (header_info.version >= 3) ? 4 : 3;
+    FILE *out = fopen(out_file, "r+b");
 
     if (out == NULL) {
         printf("File writing error\n");
@@ -138,26 +128,26 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
     unsigned power = 16;
     char cur_char;
 
-    fprintf(out, "%s", tag_info.signature);
-    fprintf(out, "%c%c", tag_info.version, 0);
+    fprintf(out, "%s", header_info.signature);
+    fprintf(out, "%c%c", header_info.version, 0);
 
     char byte_for_flags = 0;
 
-    byte_for_flags += power * tag_info.flags.unsynchronisation;
+    byte_for_flags += power * header_info.flags.unsynchronisation;
     power *= 2;
-    byte_for_flags += power * tag_info.flags.extended_header;
+    byte_for_flags += power * header_info.flags.extended_header;
     power *= 2;
-    byte_for_flags += power * tag_info.flags.exp_indicator;
+    byte_for_flags += power * header_info.flags.exp_indicator;
     power *= 2;
-    byte_for_flags += power * tag_info.flags.footer_present;
+    byte_for_flags += power * header_info.flags.footer_present;
 
     fputc(byte_for_flags, out);
 
     power = INITIAL7;
 
     for (int i = 0; i < 4; i++) {
-        cur_char = tag_info.size / power;
-        tag_info.size -= cur_char * power;
+        cur_char = header_info.size / power;
+        header_info.size -= cur_char * power;
 
         fputc(cur_char, out);
 
@@ -166,7 +156,7 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
 
     for (int i = 0; i < length; i++) {
         for (int j = 0; j < byte_num; j++) {
-            fputc(frame_list[i].header[j], out);
+            fputc(frame_list[i].tag[j], out);
         }
 
         unsigned frame_size = strlen(frame_list[i].info) + 1;
@@ -176,11 +166,9 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
         for (int j = 0; j < 4; j++) {
             cur_char = frame_size / power;
             frame_size -= cur_char * power;
-            if (cur_char == 10) {
-                fprint10(out);
-            } else {
-                fputc(cur_char, out);
-            }
+
+            fputc(cur_char, out);
+
             power /= 128;
         }
 
@@ -192,7 +180,7 @@ void createFile(char *out_file, tag tag_info, frame *frame_list, unsigned length
 
         frame_size = strlen(frame_list[i].info);
 
-        if (!strcmp(frame_list[i].header, "COMM")) {
+        if (!strcmp(frame_list[i].tag, "COMM")) {
             frame_list[i].info[3] = 0;
         }
 
@@ -211,7 +199,7 @@ int main(int argc, char **argv) {
     frame *frame_list = NULL;
     unsigned last_frame = 0;
 
-    tag tag_info;
+    header header_info;
 
     FILE *in = fopen(filename, "r");
 
@@ -219,10 +207,10 @@ int main(int argc, char **argv) {
         printf("File reading error\n");
     }
 
-    getBasicData(in, &tag_info);
+    getBasicData(in, &header_info);
 
-    while (ftell(in) < tag_info.size) {
-        frame_list = getNextFrame(in, &tag_info, frame_list, &last_frame);
+    while (ftell(in) < header_info.size) {
+        frame_list = getNextFrame(in, &header_info, frame_list, &last_frame);
     }
 
     fclose(in);
@@ -244,7 +232,7 @@ int main(int argc, char **argv) {
                 char *prop_name = strchr(command, '=') + 1;
                 char *prop_value = strrchr(next_command, '=') + 1;
 
-                setInfo(&tag_info, frame_list, last_frame + 1, prop_name, prop_value);
+                setInfo(&header_info, frame_list, last_frame + 1, prop_name, prop_value);
                 isChanged = 1;
             } else if (!strcmp(command, "--get")) {
                 command[5] = '=';
@@ -261,7 +249,10 @@ int main(int argc, char **argv) {
     }
 
     if (isChanged) {
-        createFile(filename, tag_info, frame_list, last_frame + 1);
+        printf("Do you want to save changes? (y/n)\n");
+        if (getchar() == 'y') {
+            createFile(filename, header_info, frame_list, last_frame + 1);
+        }
     }
 
     free(frame_list);

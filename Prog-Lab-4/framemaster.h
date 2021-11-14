@@ -1,7 +1,7 @@
 #ifndef PROG_LAB_4_FRAMEMASTER_H
 #define PROG_LAB_4_FRAMEMASTER_H
 
-#define LINESIZE 100
+#define LINESIZE 1000
 #define INITIAL7 2097152
 
 typedef struct {
@@ -16,17 +16,17 @@ typedef struct {
     short version;
     flags_mp3 flags;
     unsigned size;
-} tag;
+} header;
 
 typedef struct {
-    char header[5];
+    char tag[5];
     char encoding;
     char info[LINESIZE];
     char flag[2];
-    } frame;
+} frame;
 
-void getBasicData(FILE *in, tag *tag_info);
+void getBasicData(FILE *in, header *header_info);
 
-frame *getNextFrame(FILE *in, tag *tag_info, frame *new_frame_list, unsigned *last_frame);
+frame *getNextFrame(FILE *in, header *header_info, frame *new_frame_list, unsigned *last_frame);
 
 #endif //PROG_LAB_4_FRAMEMASTER_H
