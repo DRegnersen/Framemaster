@@ -259,10 +259,7 @@ int main(int argc, char **argv) {
 
                 printf("%s\n", getInfo(frames, prop_name));
             } else {
-                if (strlen(command) >= 6) {
-                    command[5] = '=';
-                }
-                printf("Command '%s' is unacceptable\n", command);
+                printf("Command '%s...' is unacceptable\n", command);
             }
         }
     }
