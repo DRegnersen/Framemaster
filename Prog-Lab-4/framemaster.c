@@ -3,6 +3,32 @@
 #include <string.h>
 #include "framemaster.h"
 
+FrameList *declare_list() {
+    FrameList *new_list = (FrameList *) malloc(sizeof(FrameList));
+
+    new_list->capacity = LISTCAPASITY;
+    new_list->size = 0;
+    new_list->values = (frame *) malloc(new_list->capacity * sizeof(frame));
+
+    return new_list;
+}
+
+FrameList *push_back(FrameList *dest, frame new_value) {
+    if (dest->size == dest->capacity) {
+        dest->capacity *= 2;
+        dest->values = (frame *) realloc(dest->values, dest->capacity * sizeof(frame));
+
+        if (dest->values == NULL) {
+            printf("Segmentation fault\n");
+            return NULL;
+        }
+    }
+    dest->values[dest->size] = new_value;
+    dest->size++;
+
+    return dest;
+}
+
 void getBasicData(FILE *in, header *header_info) {
     // ID3v2 signature reading
 
@@ -45,23 +71,17 @@ void getBasicData(FILE *in, header *header_info) {
     }
 }
 
-frame *getNextFrame(FILE *in, header *header_info, frame *new_frame_list, unsigned *last_frame) {
+FrameList *getNextFrame(FILE *in, header *header_info, FrameList *frames) {
     unsigned byte_num = ((*header_info).version >= 3) ? 4 : 3;
 
-    // new frame adding
-    new_frame_list = (frame *) realloc(new_frame_list, ((*last_frame) + 1) * sizeof(frame));
-
-    if (new_frame_list == NULL) {
-        printf("Segmentation fault\n");
-        return NULL;
-    }
+    frame new_frame;
 
     // tag reading
     for (int i = 0; i < byte_num; i++) {
-        new_frame_list[(*last_frame)].tag[i] = fgetc(in);
+        new_frame.tag[i] = fgetc(in);
     }
 
-    new_frame_list[(*last_frame)].tag[byte_num] = 0;
+    new_frame.tag[byte_num] = 0;
 
     // size reading
     int frame_size = 0;
@@ -75,23 +95,22 @@ frame *getNextFrame(FILE *in, header *header_info, frame *new_frame_list, unsign
     frame_size--;
 
     // reading flags
-    new_frame_list[(*last_frame)].flag[0] = fgetc(in);
-    new_frame_list[(*last_frame)].flag[1] = fgetc(in);
+    new_frame.flag[0] = fgetc(in);
+    new_frame.flag[1] = fgetc(in);
 
     // information reading
-    new_frame_list[(*last_frame)].encoding = fgetc(in);
+    new_frame.encoding = fgetc(in);
 
     for (int i = 0; i < frame_size; i++) {
-        new_frame_list[(*last_frame)].info[i] = fgetc(in);
+        new_frame.info[i] = fgetc(in);
     }
 
-    if (!strcmp(new_frame_list[(*last_frame)].tag, "COMM")) {
-        new_frame_list[(*last_frame)].info[3] = ' ';
+    // COMM conversion to readable view
+    if (!strcmp(new_frame.tag, "COMM")) {
+        new_frame.info[3] = ' ';
     }
 
-    new_frame_list[(*last_frame)].info[frame_size] = 0;
+    new_frame.info[frame_size] = 0;
 
-    (*last_frame)++;
-
-    return new_frame_list;
+    return push_back(frames, new_frame);
 }
